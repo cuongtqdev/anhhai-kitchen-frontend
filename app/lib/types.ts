@@ -14,3 +14,57 @@ export interface CartItem {
   menuItem: MenuItem;
   quantity: number;
 }
+
+// Matching backend DiningMode enum
+export enum DiningMode {
+  DineIn = 0,
+  TakeAway = 1,
+  Delivery = 2,
+}
+
+// Matching backend CreateOrderCommand
+export interface CreateOrderPayload {
+  items: { menuItemId: number; quantity: number }[];
+  diningMode: DiningMode;
+  tableNumber: string | null;
+  deliveryAddress: string | null;
+  customerPhone: string | null;
+  note: string | null;
+}
+
+// Matching backend OrderResponse
+export interface OrderResponse {
+  id: number;
+  trackingToken: string;
+  status: string;
+  totalAmount: number;
+}
+
+// Order statuses matching backend OrderStatus enum
+export enum OrderStatus {
+  Pending = 0,
+  Preparing = 1,
+  Ready = 2,
+  Completed = 3,
+  Cancelled = 4,
+}
+
+// Full tracked order info for /theo-doi-don
+export interface TrackedOrder {
+  id: number;
+  trackingToken: string;
+  status: OrderStatus;
+  diningMode: DiningMode;
+  tableNumber: string | null;
+  deliveryAddress: string | null;
+  customerPhone: string | null;
+  note: string | null;
+  totalAmount: number;
+  createdAt: string;
+  items: {
+    menuItemName: string;
+    quantity: number;
+    unitPrice: number;
+    subtotal: number;
+  }[];
+}
