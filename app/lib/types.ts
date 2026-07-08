@@ -1,3 +1,9 @@
+export enum MenuItemCategory {
+  MainDish = 1,
+  OptionalSide = 2,
+  MandatorySide = 3,
+}
+
 // Types matching backend MenuItemResponse DTO
 export interface MenuItem {
   id: number;
@@ -8,11 +14,20 @@ export interface MenuItem {
   imageUrl: string | null;
   isAvailable: boolean;
   stockCount: number;
+  menuItemCategory: MenuItemCategory;
+}
+
+export interface CartSideDish {
+  menuItem: MenuItem;
+  quantity: number;
 }
 
 export interface CartItem {
+  cartItemId: string;
   menuItem: MenuItem;
   quantity: number;
+  sideDishes?: CartSideDish[];
+  note?: string;
 }
 
 // Matching backend DiningMode enum
@@ -24,7 +39,7 @@ export enum DiningMode {
 
 // Matching backend CreateOrderCommand
 export interface CreateOrderPayload {
-  items: { menuItemId: number; quantity: number }[];
+  items: { menuItemId: number; quantity: number; note: string }[];
   diningMode: DiningMode;
   tableNumber: string | null;
   deliveryAddress: string | null;

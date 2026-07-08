@@ -73,7 +73,7 @@ export function CartDrawer() {
                   <AnimatePresence mode="popLayout">
                     {items.map((item) => (
                       <motion.li
-                        key={item.menuItem.id}
+                        key={item.cartItemId}
                         layout
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -98,18 +98,45 @@ export function CartDrawer() {
 
                         {/* Details */}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-slate-900 truncate">
-                            {item.menuItem.name}
-                          </p>
-                          <p className="text-sm font-semibold text-amber-600 mt-0.5">
-                            {item.menuItem.price.toLocaleString("vi-VN")}d
+                          <div className="flex justify-between items-start">
+                            <p className="text-sm font-bold text-slate-900 truncate">
+                              {item.menuItem.name}
+                            </p>
+                            <span className="text-sm font-semibold text-slate-700 ml-2">
+                              {item.menuItem.price.toLocaleString("vi-VN")}đ
+                            </span>
+                          </div>
+                          
+                          {item.sideDishes && item.sideDishes.length > 0 && (
+                            <div className="mt-1 flex flex-col gap-0.5">
+                              {item.sideDishes.map((side) => (
+                                <div key={side.menuItem.id} className="text-xs text-slate-500 flex justify-between items-start">
+                                  <span className="line-clamp-1 pr-2">
+                                    + {side.menuItem.name} {side.quantity > 1 ? `(x${side.quantity})` : ""}
+                                  </span>
+                                  <span className="shrink-0">
+                                    {(side.menuItem.price * side.quantity).toLocaleString("vi-VN")}đ
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {item.note && (
+                            <p className="text-xs text-slate-500 mt-1 line-clamp-1 italic">
+                              Ghi chú: {item.note}
+                            </p>
+                          )}
+                          
+                          <p className="text-xs font-bold text-amber-600 mt-2 border-t border-slate-100 pt-1.5 inline-block">
+                            Tổng 1 phần: {((item.menuItem.price) + (item.sideDishes?.reduce((sum, s) => sum + s.menuItem.price * s.quantity, 0) || 0)).toLocaleString("vi-VN")}đ
                           </p>
 
                           {/* Quantity controls */}
                           <div className="flex items-center gap-2 mt-2.5">
                             <button
                               onClick={() =>
-                                updateQuantity(item.menuItem.id, item.quantity - 1)
+                                updateQuantity(item.cartItemId, item.quantity - 1)
                               }
                               className="w-7 h-7 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors active:scale-[0.94]"
                               aria-label="Giam so luong"
@@ -121,7 +148,7 @@ export function CartDrawer() {
                             </span>
                             <button
                               onClick={() =>
-                                updateQuantity(item.menuItem.id, item.quantity + 1)
+                                updateQuantity(item.cartItemId, item.quantity + 1)
                               }
                               className="w-7 h-7 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors active:scale-[0.94]"
                               aria-label="Tang so luong"
@@ -133,7 +160,7 @@ export function CartDrawer() {
 
                         {/* Remove */}
                         <button
-                          onClick={() => removeItem(item.menuItem.id)}
+                          onClick={() => removeItem(item.cartItemId)}
                           className="w-7 h-7 rounded-full hover:bg-red-50 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors shrink-0"
                           aria-label="Xoa mon"
                         >
