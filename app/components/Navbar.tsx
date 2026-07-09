@@ -9,6 +9,7 @@ const navItems = [
   { label: "Trang chu", href: "/" },
   { label: "Thuc don", href: "/thuc-don" },
   { label: "Dat mon", href: "/dat-mon" },
+  { label: "Don hang cua ban", href: "/theo-doi-don" },
 ];
 
 export function Navbar() {

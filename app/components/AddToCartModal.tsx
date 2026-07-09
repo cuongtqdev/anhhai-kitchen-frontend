@@ -54,16 +54,16 @@ export function AddToCartModal({ isOpen, onClose, item, allMenuItems }: AddToCar
     const selectedSides = [...optionalSides, ...mandatorySides]
       .filter(side => sideQuantities[side.id] > 0)
       .map(side => ({
-        ...side,
+        menuItem: side,
         quantity: sideQuantities[side.id]
       }));
 
-    addItem({
-      ...item,
-      quantity,
+    addItem(
+      item,
       selectedSides,
-      note: note.trim() || undefined
-    });
+      note.trim() || undefined,
+      quantity
+    );
     
     onClose();
     openCart();

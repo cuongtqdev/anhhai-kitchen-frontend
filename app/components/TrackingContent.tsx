@@ -18,23 +18,36 @@ import {
 } from "@phosphor-icons/react";
 import { OrderStatus, DiningMode } from "../lib/types";
 
-interface OrderItem {
-  name: string;
-  quantity: number;
-  unitPrice: number;
-  subtotal: number;
-}
-
-interface LocalOrder {
+interface ApiOrder {
   trackingToken: string;
-  items: OrderItem[];
-  totalAmount: number;
+  status: {
+    code: string;
+    text: string;
+    description: string;
+  };
+  payment: {
+    status: string;
+    subtotalAmount: number;
+    deliveryFee: number;
+    discountAmount: number;
+    totalAmount: number;
+  };
   diningMode: DiningMode;
   tableNumber: string | null;
   deliveryAddress: string | null;
-  customerPhone: string | null;
-  note: string | null;
   createdAt: string;
+  items: {
+    name: string;
+    quantity: number;
+    unitPrice: number;
+    lineTotal: number;
+    childItems?: {
+      name: string;
+      quantity: number;
+      unitPrice: number;
+      lineTotal: number;
+    }[];
+  }[];
 }
 
 const statusSteps = [
@@ -82,112 +95,34 @@ const diningModeLabels = {
   [DiningMode.Delivery]: { label: "Giao hang", icon: Motorcycle },
 };
 
-export function TrackingContent() {
-  const reduce = useReducedMotion();
-  const [order, setOrder] = useState<LocalOrder | null>(null);
-  const [noOrder, setNoOrder] = useState(false);
 
-  // Mock: simulate a current status (in real app, this would come from API polling)
-  const [currentStatus, setCurrentStatus] = useState<OrderStatus>(OrderStatus.Pending);
-  const [isCancelled, setIsCancelled] = useState(false);
-
-  useEffect(() => {
-    const stored = localStorage.getItem("anhhai_last_order");
-    if (stored) {
-      try {
-        setOrder(JSON.parse(stored));
-      } catch {
-        setNoOrder(true);
-      }
-    } else {
-      setNoOrder(true);
-    }
-  }, []);
-
-  // Mock: auto-advance status for demo purposes
-  useEffect(() => {
-    if (!order || isCancelled) return;
-
-    const timers = [
-      setTimeout(() => setCurrentStatus(OrderStatus.Preparing), 5000),
-      setTimeout(() => setCurrentStatus(OrderStatus.Ready), 12000),
-    ];
-
-    return () => timers.forEach(clearTimeout);
-  }, [order, isCancelled]);
-
+function OrderCard({ order, reduce }: { order: ApiOrder; reduce: boolean | null }) {
+  const statusMap: Record<string, OrderStatus> = {
+    'Pending': OrderStatus.Pending,
+    'Preparing': OrderStatus.Preparing,
+    'Ready': OrderStatus.Ready,
+    'Completed': OrderStatus.Completed,
+    'Cancelled': OrderStatus.Cancelled,
+  };
+  const currentStatus = statusMap[order.status.code] ?? OrderStatus.Pending;
+  const isCancelled = currentStatus === OrderStatus.Cancelled;
   const currentStepIndex = statusSteps.findIndex((s) => s.status === currentStatus);
   const activeStep = statusSteps[currentStepIndex] ?? statusSteps[0];
-  const diningInfo = order ? diningModeLabels[order.diningMode] : null;
-
-  if (noOrder) {
-    return (
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <motion.div
-          initial={reduce ? false : { opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="text-center py-24 bg-white rounded-2xl border border-slate-100"
-        >
-          <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-4">
-            <Receipt size={28} weight="duotone" className="text-slate-300" />
-          </div>
-          <p className="text-base font-bold text-slate-900">Khong tim thay don hang</p>
-          <p className="text-sm text-slate-500 mt-1 max-w-[30ch] mx-auto">
-            Ban chua co don hang nao. Hay dat mon truoc nhe!
-          </p>
-          <Link
-            href="/thuc-don"
-            className="inline-flex items-center gap-2 mt-6 bg-slate-900 text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-slate-800 transition-colors active:scale-[0.97]"
-          >
-            Xem thuc don
-          </Link>
-        </motion.div>
-      </div>
-    );
-  }
-
-  if (!order) {
-    return (
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-center py-24">
-          <div className="w-8 h-8 border-2 border-slate-200 border-t-amber-500 rounded-full animate-spin" />
-        </div>
-      </div>
-    );
-  }
+  const diningInfo = diningModeLabels[order.diningMode] ?? null;
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Back link */}
-      <motion.div
-        initial={reduce ? false : { opacity: 0, x: -12 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors duration-300 mb-8"
-        >
-          <ArrowLeft size={16} weight="bold" />
-          Trang chu
-        </Link>
-      </motion.div>
-
+    <div className="mb-12">
       <motion.div
         initial={reduce ? false : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
       >
-        <h1 className="text-3xl md:text-4xl font-extrabold tracking-[-0.03em] text-slate-900">
-          Theo doi don hang
-        </h1>
-        <p className="mt-2 text-sm text-slate-500">
-          Ma don: <span className="font-mono text-xs text-slate-400">{order.trackingToken.slice(0, 8).toUpperCase()}</span>
-        </p>
+        <h2 className="text-2xl md:text-3xl font-extrabold tracking-[-0.03em] text-slate-900">
+          Đơn hàng <span className="font-mono text-xl text-amber-600">#{order.trackingToken.slice(0, 8).toUpperCase()}</span>
+        </h2>
       </motion.div>
 
-      <div className="mt-10 space-y-6">
+      <div className="mt-6 space-y-6">
         {/* Status stepper card */}
         <motion.section
           initial={reduce ? false : { opacity: 0, y: 16 }}
@@ -215,8 +150,8 @@ export function TrackingContent() {
                   <activeStep.icon size={28} weight="duotone" className={activeStep.color} />
                 </div>
                 <div>
-                  <p className="text-lg font-bold text-slate-900">{activeStep.label}</p>
-                  <p className="text-sm text-slate-500">{activeStep.description}</p>
+                  <p className="text-lg font-bold text-slate-900">{order.status.text || activeStep.label}</p>
+                  <p className="text-sm text-slate-500">{order.status.description || activeStep.description}</p>
                 </div>
               </div>
 
@@ -225,11 +160,9 @@ export function TrackingContent() {
                 {statusSteps.map((step, i) => {
                   const isPast = i < currentStepIndex;
                   const isCurrent = i === currentStepIndex;
-                  const isFuture = i > currentStepIndex;
 
                   return (
                     <div key={step.status} className="flex items-center flex-1 last:flex-none">
-                      {/* Dot */}
                       <motion.div
                         initial={reduce ? false : { scale: 0.8 }}
                         animate={{ scale: 1 }}
@@ -240,10 +173,10 @@ export function TrackingContent() {
                         }}
                         className={`relative w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-colors duration-500 ${
                           isPast
-                            ? "bg-emerald-500"
+                            ? 'bg-emerald-500'
                             : isCurrent
                               ? `${activeStep.bgColor} ring-2 ${activeStep.borderColor}`
-                              : "bg-slate-100"
+                              : 'bg-slate-100'
                         }`}
                       >
                         {isPast ? (
@@ -253,7 +186,7 @@ export function TrackingContent() {
                             size={18}
                             weight="duotone"
                             className={
-                              isCurrent ? activeStep.color : "text-slate-400"
+                              isCurrent ? activeStep.color : 'text-slate-400'
                             }
                           />
                         )}
@@ -262,13 +195,12 @@ export function TrackingContent() {
                         )}
                       </motion.div>
 
-                      {/* Connector line */}
                       {i < statusSteps.length - 1 && (
                         <div className="flex-1 h-1 mx-1.5 rounded-full overflow-hidden bg-slate-100">
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{
-                              width: isPast ? "100%" : isCurrent ? "50%" : "0%",
+                              width: isPast ? '100%' : isCurrent ? '50%' : '0%',
                             }}
                             transition={{
                               duration: 0.6,
@@ -284,20 +216,20 @@ export function TrackingContent() {
                 })}
               </div>
 
-              {/* Step labels (below dots) */}
+              {/* Step labels */}
               <div className="flex mt-3">
                 {statusSteps.map((step, i) => {
                   const isCurrent = i === currentStepIndex;
                   const isPast = i < currentStepIndex;
                   return (
-                    <div key={step.status} className={`flex-1 ${i === statusSteps.length - 1 ? "flex-none" : ""}`}>
+                    <div key={step.status} className={`flex-1 ${i === statusSteps.length - 1 ? 'flex-none' : ''}`}>
                       <p
                         className={`text-[11px] font-medium leading-tight ${
                           isCurrent
-                            ? "text-slate-900"
+                            ? 'text-slate-900'
                             : isPast
-                              ? "text-emerald-600"
-                              : "text-slate-400"
+                              ? 'text-emerald-600'
+                              : 'text-slate-400'
                         }`}
                       >
                         {step.label}
@@ -322,25 +254,42 @@ export function TrackingContent() {
           </div>
           <ul className="divide-y divide-slate-50">
             {order.items.map((item, i) => (
-              <li key={i} className="flex items-center justify-between px-6 py-3.5">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 shrink-0">
-                    {item.quantity}
-                  </span>
-                  <span className="text-sm font-medium text-slate-900 truncate">
-                    {item.name}
+              <li key={i} className="flex flex-col px-6 py-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 shrink-0">
+                      {item.quantity}
+                    </span>
+                    <span className="text-sm font-medium text-slate-900 truncate">
+                      {item.name}
+                    </span>
+                  </div>
+                  <span className="text-sm font-semibold text-slate-700 tabular-nums shrink-0 ml-3">
+                    {item.lineTotal.toLocaleString('vi-VN')}d
                   </span>
                 </div>
-                <span className="text-sm font-semibold text-slate-700 tabular-nums shrink-0 ml-3">
-                  {item.subtotal.toLocaleString("vi-VN")}d
-                </span>
+                {item.childItems && item.childItems.length > 0 && (
+                  <div className="mt-2 pl-9 space-y-1">
+                    {item.childItems.map((child, j) => (
+                      <div key={j} className="flex items-center justify-between text-sm">
+                        <span className="text-slate-500 flex items-center gap-1">
+                          <span className="w-1 h-1 bg-slate-300 rounded-full inline-block" />
+                          {child.name} (x{child.quantity})
+                        </span>
+                        <span className="text-slate-500 tabular-nums">
+                          {child.lineTotal.toLocaleString('vi-VN')}d
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </li>
             ))}
           </ul>
           <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
             <span className="text-sm font-bold text-slate-900">Tong cong</span>
             <span className="text-lg font-extrabold text-slate-900 tabular-nums">
-              {order.totalAmount.toLocaleString("vi-VN")}d
+              {order.payment.totalAmount.toLocaleString('vi-VN')}d
             </span>
           </div>
         </motion.section>
@@ -353,7 +302,6 @@ export function TrackingContent() {
           className="bg-white rounded-2xl border border-slate-100 p-6 space-y-3"
         >
           <h2 className="text-base font-bold text-slate-900 mb-1">Thong tin</h2>
-
           {diningInfo && (
             <div className="flex items-center gap-2.5">
               <diningInfo.icon size={16} weight="duotone" className="text-amber-500 shrink-0" />
@@ -365,61 +313,165 @@ export function TrackingContent() {
               )}
             </div>
           )}
-
           {order.deliveryAddress && (
             <div className="flex items-start gap-2.5">
               <MapPin size={16} weight="duotone" className="text-amber-500 shrink-0 mt-0.5" />
               <span className="text-sm text-slate-700">{order.deliveryAddress}</span>
             </div>
           )}
-
-          {order.customerPhone && (
-            <div className="flex items-center gap-2.5">
-              <Phone size={16} weight="duotone" className="text-amber-500 shrink-0" />
-              <span className="text-sm text-slate-700">{order.customerPhone}</span>
-            </div>
-          )}
-
-          {order.note && (
-            <div className="flex items-start gap-2.5">
-              <Receipt size={16} weight="duotone" className="text-amber-500 shrink-0 mt-0.5" />
-              <span className="text-sm text-slate-500 italic">{order.note}</span>
-            </div>
-          )}
-
           <p className="text-xs text-slate-400 pt-1">
-            Dat luc:{" "}
-            {new Date(order.createdAt).toLocaleString("vi-VN", {
-              hour: "2-digit",
-              minute: "2-digit",
-              day: "2-digit",
-              month: "2-digit",
-              year: "numeric",
+            Dat luc:{' '}
+            {new Date(order.createdAt).toLocaleString('vi-VN', {
+              hour: '2-digit', minute: '2-digit',
+              day: '2-digit', month: '2-digit', year: 'numeric',
             })}
           </p>
         </motion.section>
+      </div>
+    </div>
+  );
+}
 
-        {/* Actions */}
+
+
+export function TrackingContent() {
+  const reduce = useReducedMotion();
+  const [orders, setOrders] = useState<ApiOrder[]>([]);
+  const [noOrder, setNoOrder] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    const fetchOrders = async () => {
+      const stored = localStorage.getItem("anhhai_tracking_tokens");
+      if (!stored) {
+        setNoOrder(true);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const tokens = JSON.parse(stored);
+        if (!Array.isArray(tokens) || tokens.length === 0) {
+          setNoOrder(true);
+          setLoading(false);
+          return;
+        }
+
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5130";
+        const fetchedOrders: ApiOrder[] = [];
+
+        // Fetch all tokens
+        for (const t of tokens) {
+          try {
+            const res = await fetch(`${apiUrl}/api/orders/track?token=${t.trackingToken}`);
+            if (res.ok) {
+              const data = await res.json();
+              const orderData = data.value !== undefined ? data.value : data;
+              fetchedOrders.push(orderData);
+            }
+          } catch(e) {}
+        }
+        
+        if (fetchedOrders.length === 0) {
+          setNoOrder(true);
+        } else {
+          // Reverse so newest is on top
+          setOrders(fetchedOrders.reverse());
+          setNoOrder(false);
+        }
+        setLoading(false);
+      } catch (err) {
+        console.error("Failed to fetch orders", err);
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+    intervalId = setInterval(fetchOrders, 10000);
+    return () => clearInterval(intervalId);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-center py-24">
+          <div className="w-8 h-8 border-2 border-slate-200 border-t-amber-500 rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  if (noOrder || orders.length === 0) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <motion.div
-          initial={reduce ? false : { opacity: 0, y: 16 }}
+          initial={reduce ? false : { opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="flex flex-col sm:flex-row gap-3"
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="text-center py-24 bg-white rounded-2xl border border-slate-100"
         >
+          <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-4">
+            <Receipt size={28} weight="duotone" className="text-slate-300" />
+          </div>
+          <p className="text-base font-bold text-slate-900">Khong tim thay don hang</p>
+          <p className="text-sm text-slate-500 mt-1 max-w-[30ch] mx-auto">
+            Ban chua co don hang nao. Hay dat mon truoc nhe!
+          </p>
           <Link
             href="/thuc-don"
-            className="flex-1 text-center bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold py-3 rounded-full transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.98]"
+            className="inline-flex items-center gap-2 mt-6 bg-slate-900 text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-slate-800 transition-colors active:scale-[0.97]"
           >
-            Dat them mon khac
-          </Link>
-          <Link
-            href="/"
-            className="flex-1 text-center bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 text-sm font-semibold py-3 rounded-full transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.98]"
-          >
-            Ve trang chu
+            Xem thuc don
           </Link>
         </motion.div>
       </div>
+    );
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Back link */}
+      <motion.div
+        initial={reduce ? false : { opacity: 0, x: -12 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors duration-300 mb-8"
+        >
+          <ArrowLeft size={16} weight="bold" />
+          Trang chu
+        </Link>
+      </motion.div>
+
+      {/* Render all orders */}
+      {orders.map(order => (
+         <OrderCard key={order.trackingToken} order={order} reduce={reduce} />
+      ))}
+
+      {/* Actions */}
+      <motion.div
+        initial={reduce ? false : { opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        className="flex flex-col sm:flex-row gap-3 mt-8"
+      >
+        <Link
+          href="/thuc-don"
+          className="flex-1 text-center bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold py-3 rounded-full transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.98]"
+        >
+          Dat them mon khac
+        </Link>
+        <Link
+          href="/"
+          className="flex-1 text-center bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 text-sm font-semibold py-3 rounded-full transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.98]"
+        >
+          Ve trang chu
+        </Link>
+      </motion.div>
     </div>
   );
 }
