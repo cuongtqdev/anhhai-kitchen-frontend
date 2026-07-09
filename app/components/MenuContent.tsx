@@ -4,26 +4,37 @@ import { useState, useMemo } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { ShoppingCart, FunnelSimple } from "@phosphor-icons/react";
 import { useCartStore } from "../lib/cart-store";
-import { mockMenuItems } from "../lib/mock-data";
+import type { MenuItem } from "../lib/types";
 import { MenuItemCard } from "./MenuItemCard";
+import { AddToCartModal } from "./AddToCartModal";
 
-export function MenuContent() {
+interface MenuContentProps {
+  initialItems: MenuItem[];
+}
+
+export function MenuContent({ initialItems }: MenuContentProps) {
   const [activeCategory, setActiveCategory] = useState<string>("Tat ca");
+  const [selectedItemForModal, setSelectedItemForModal] = useState<MenuItem | null>(null);
   const { openCart, totalItems } = useCartStore();
   const count = totalItems();
   const reduce = useReducedMotion();
 
   // Extract unique categories
   const categories = useMemo(() => {
-    const cats = Array.from(new Set(mockMenuItems.map((item) => item.category)));
+    // Only display categories for MainDish (1) to keep the filter UI clean, or all available categories?
+    // Usually menu has MainDish categories like "Mon chinh". The sides don't need to be in the filter.
+    // Let's just collect all categories present in the items (which are all MainDish if we filter them).
+    const mainDishes = initialItems.filter(i => i.menuItemCategory === 1);
+    const cats = Array.from(new Set(mainDishes.map((item) => item.category)));
     return ["Tat ca", ...cats];
-  }, []);
+  }, [initialItems]);
 
-  // Filter items by category
+  // Filter items by category (only show MainDish on the menu page, sides are added via detail page)
   const filteredItems = useMemo(() => {
-    if (activeCategory === "Tat ca") return mockMenuItems;
-    return mockMenuItems.filter((item) => item.category === activeCategory);
-  }, [activeCategory]);
+    const mainDishes = initialItems.filter(i => i.menuItemCategory === 1);
+    if (activeCategory === "Tat ca") return mainDishes;
+    return mainDishes.filter((item) => item.category === activeCategory);
+  }, [activeCategory, initialItems]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -89,10 +100,29 @@ export function MenuContent() {
         ))}
       </motion.div>
 
-      {/* Items grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {/* Items list (Mobile) */}
+      <div className="flex flex-col gap-4 sm:hidden">
         {filteredItems.map((item, i) => (
-          <MenuItemCard key={item.id} item={item} index={i} />
+          <MenuItemCard 
+            key={`mobile-${item.id}`} 
+            item={item} 
+            index={i}
+            isMobile={true} 
+            onAddClick={() => setSelectedItemForModal(item)}
+          />
+        ))}
+      </div>
+
+      {/* Items grid (Desktop/Tablet) */}
+      <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
+        {filteredItems.map((item, i) => (
+          <MenuItemCard 
+            key={`desktop-${item.id}`} 
+            item={item} 
+            index={i} 
+            isMobile={false}
+            onAddClick={() => setSelectedItemForModal(item)}
+          />
         ))}
       </div>
 
@@ -102,6 +132,15 @@ export function MenuContent() {
           <p className="text-sm text-slate-400">Khong co mon an nao trong danh muc nay.</p>
         </div>
       )}
+
+      {/* Add To Cart Modal */}
+      <AddToCartModal 
+        isOpen={!!selectedItemForModal} 
+        onClose={() => setSelectedItemForModal(null)} 
+        item={selectedItemForModal} 
+        allMenuItems={initialItems} 
+      />
     </div>
   );
 }
+

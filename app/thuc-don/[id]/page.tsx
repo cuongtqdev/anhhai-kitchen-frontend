@@ -16,9 +16,10 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function MenuItemDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5248";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5130";
   let item: MenuItem | null = null;
   let allMenuItems: MenuItem[] = [];
+  let fetchError = false;
 
   try {
     // Try to fetch the entire menu to get side dishes
@@ -26,14 +27,28 @@ export default async function MenuItemDetailPage({ params }: { params: Promise<{
     if (res.ok) {
       const data = await res.json();
       allMenuItems = data.value !== undefined ? data.value : data;
+    } else {
+      fetchError = true;
     }
   } catch (error) {
     console.error("Failed to fetch menu item", error);
+    fetchError = true;
   }
 
-  // Fallback to mock data if the API fails or returns empty
-  if (!allMenuItems || allMenuItems.length === 0 || !Array.isArray(allMenuItems)) {
-    allMenuItems = mockMenuItems;
+  if (fetchError || !allMenuItems || allMenuItems.length === 0 || !Array.isArray(allMenuItems)) {
+    return (
+      <>
+        <Navbar />
+        <main className="pt-24 pb-16 min-h-[100dvh] bg-[#FAFAF9]">
+          <div className="max-w-7xl mx-auto px-6 py-32 text-center flex flex-col items-center">
+            <h1 className="text-3xl font-bold text-slate-900">Lỗi kết nối</h1>
+            <p className="mt-4 text-slate-600">Không thể lấy dữ liệu từ máy chủ. Vui lòng thử lại sau.</p>
+          </div>
+        </main>
+        <Footer />
+        <CartDrawer />
+      </>
+    );
   }
 
   // Find the specific item. Handle string id vs int id correctly, and ensure it's a valid MenuItem
@@ -47,24 +62,28 @@ export default async function MenuItemDetailPage({ params }: { params: Promise<{
   // menuItemCategory === 2 is OptionalSide
   // menuItemCategory === 3 is MandatorySide
   const optionalSides = item 
-    ? allMenuItems.filter(m => m.category === item!.category && m.menuItemCategory === 2 && m.id !== item!.id && m.isAvailable)
+    ? allMenuItems.filter(m => m.menuItemCategory === 2 && m.id !== item!.id && m.isAvailable)
     : [];
   
   const mandatorySides = item
-    ? allMenuItems.filter(m => m.category === item!.category && m.menuItemCategory === 3 && m.id !== item!.id && m.isAvailable)
+    ? allMenuItems.filter(m => m.menuItemCategory === 3 && m.id !== item!.id && m.isAvailable)
     : [];
 
   return (
     <>
-      <Navbar />
-      <main className="pt-24 pb-16 min-h-[100dvh] bg-[#FAFAF9]">
+      <div className="hidden lg:block">
+        <Navbar />
+      </div>
+      <main className="min-h-[100dvh] bg-slate-50 lg:bg-[#FAFAF9] lg:pt-24 lg:pb-16">
         <MenuItemDetailClient 
           item={item} 
           optionalSides={optionalSides} 
           mandatorySides={mandatorySides} 
         />
       </main>
-      <Footer />
+      <div className="hidden lg:block">
+        <Footer />
+      </div>
       <CartDrawer />
     </>
   );
