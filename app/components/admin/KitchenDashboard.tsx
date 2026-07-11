@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { HubConnectionBuilder, HubConnection, LogLevel } from "@microsoft/signalr";
 import Cookies from "js-cookie";
 import { CircleNotch, Clock, ForkKnife, CheckCircle, WarningCircle, CookingPot, X, Phone, MapPin, Receipt, CaretDown } from "@phosphor-icons/react";
+import { AdminNav } from "./AdminNav";
 
 type OrderStatus = 0 | 1 | 2 | 3 | 4; // Pending, Preparing, Ready, Completed, Cancelled
 type DiningMode = 0 | 1 | 2; // DineIn, TakeAway, Delivery
@@ -353,9 +354,7 @@ export function KitchenDashboard() {
       <div className="max-w-[1600px] mx-auto">
         <header className="flex justify-between items-center mb-8 bg-white p-4 rounded-2xl shadow-sm border border-slate-200/60 sticky top-4 z-10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white text-lg font-black shadow-md shadow-amber-500/20">
-              AH
-            </div>
+            <AdminNav />
             <div>
               <h1 className="text-xl font-bold text-slate-900 leading-tight">Màn hình Bếp</h1>
               <p className="text-[13px] font-medium text-emerald-600 flex items-center gap-1">
@@ -365,9 +364,11 @@ export function KitchenDashboard() {
             </div>
           </div>
           
-          <div className="text-right">
-            <div className="text-2xl font-black text-slate-900">{pendingOrders.length + preparingOrders.length}</div>
-            <div className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Đơn đang chờ</div>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <div className="text-2xl font-black text-slate-900">{pendingOrders.length + preparingOrders.length}</div>
+              <div className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Đơn đang chờ</div>
+            </div>
           </div>
         </header>
 
