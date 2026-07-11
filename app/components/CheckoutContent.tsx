@@ -102,23 +102,23 @@ export function CheckoutContent() {
         : customerPhone.trim();
 
       const payload = {
-        items: items.map((i) => ({ 
-          menuItemId: i.menuItem.id, 
-          quantity: i.quantity,
-          note: i.note || "",
-          childItems: i.sideDishes && i.sideDishes.length > 0 
+        Items: items.map((i) => ({ 
+          MenuItemId: i.menuItem.id, 
+          Quantity: i.quantity,
+          Note: i.note || "",
+          ChildItems: i.sideDishes && i.sideDishes.length > 0 
             ? i.sideDishes.map(side => ({
-                menuItemId: side.menuItem.id,
-                quantity: side.quantity * i.quantity,
-                note: ""
+                MenuItemId: side.menuItem.id,
+                Quantity: side.quantity * i.quantity,
+                Note: ""
               }))
             : null
         })),
-        diningMode,
-        tableNumber: diningMode === DiningMode.DineIn ? tableNumber.trim() : null,
-        deliveryAddress: diningMode === DiningMode.Delivery ? deliveryAddress.trim() : null,
-        customerPhone: finalPhone,
-        note: note.trim() || null,
+        DiningMode: diningMode,
+        TableNumber: diningMode === DiningMode.DineIn ? tableNumber.trim() : null,
+        DeliveryAddress: diningMode === DiningMode.Delivery ? deliveryAddress.trim() : null,
+        CustomerPhone: finalPhone,
+        Note: note.trim() || null,
       };
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5130";
