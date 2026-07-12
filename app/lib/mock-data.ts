@@ -13,6 +13,7 @@ export const mockMenuItems: MenuItem[] = [
     imageUrl: "https://picsum.photos/seed/comga-xoimo/600/400",
     isAvailable: true,
     stockCount: 50,
+    menuItemCategory: 1,
   },
   {
     id: 2,
@@ -23,6 +24,7 @@ export const mockMenuItems: MenuItem[] = [
     imageUrl: "https://picsum.photos/seed/comga-luoc/600/400",
     isAvailable: true,
     stockCount: 30,
+    menuItemCategory: 1,
   },
   {
     id: 3,
@@ -33,6 +35,7 @@ export const mockMenuItems: MenuItem[] = [
     imageUrl: "https://picsum.photos/seed/comga-quay/600/400",
     isAvailable: true,
     stockCount: 20,
+    menuItemCategory: 1,
   },
   {
     id: 4,
@@ -43,6 +46,7 @@ export const mockMenuItems: MenuItem[] = [
     imageUrl: "https://picsum.photos/seed/comga-sottieu/600/400",
     isAvailable: true,
     stockCount: 25,
+    menuItemCategory: 1,
   },
   {
     id: 5,
@@ -53,38 +57,42 @@ export const mockMenuItems: MenuItem[] = [
     imageUrl: "https://picsum.photos/seed/comga-xaot/600/400",
     isAvailable: false,
     stockCount: 0,
+    menuItemCategory: 1,
   },
 
   // Mon them
   {
     id: 6,
     name: "Ga Chien Gion (Phan nho)",
-    category: "Mon them",
+    category: "Mon chinh",
     price: 25000,
     description: "Ga chien gion phan nho, thich hop an them.",
     imageUrl: "https://picsum.photos/seed/gachien-nho/600/400",
     isAvailable: true,
     stockCount: 40,
+    menuItemCategory: 2,
   },
   {
     id: 7,
     name: "Canh Ga Ham",
-    category: "Mon them",
+    category: "Mon chinh",
     price: 20000,
     description: "Canh ga ham rau cu, ngot nuoc tu nhien.",
     imageUrl: "https://picsum.photos/seed/canhga/600/400",
     isAvailable: true,
     stockCount: 15,
+    menuItemCategory: 3,
   },
   {
     id: 8,
     name: "Goi Ga",
-    category: "Mon them",
+    category: "Mon chinh",
     price: 30000,
     description: "Goi ga tron hanh tay, rau ram, dau phong. Chua ngot hap dan.",
     imageUrl: "https://picsum.photos/seed/goiga/600/400",
     isAvailable: true,
     stockCount: 20,
+    menuItemCategory: 2,
   },
 
   // Do uong
@@ -97,6 +105,7 @@ export const mockMenuItems: MenuItem[] = [
     imageUrl: "https://picsum.photos/seed/trada/600/400",
     isAvailable: true,
     stockCount: 100,
+    menuItemCategory: 1,
   },
   {
     id: 10,
@@ -107,6 +116,7 @@ export const mockMenuItems: MenuItem[] = [
     imageUrl: "https://picsum.photos/seed/nuocngot/600/400",
     isAvailable: true,
     stockCount: 60,
+    menuItemCategory: 1,
   },
   {
     id: 11,
@@ -117,6 +127,7 @@ export const mockMenuItems: MenuItem[] = [
     imageUrl: "https://picsum.photos/seed/nuocchanh/600/400",
     isAvailable: true,
     stockCount: 30,
+    menuItemCategory: 1,
   },
   {
     id: 12,
@@ -127,5 +138,6 @@ export const mockMenuItems: MenuItem[] = [
     imageUrl: "https://picsum.photos/seed/nuocdua/600/400",
     isAvailable: false,
     stockCount: 0,
+    menuItemCategory: 1,
   },
 ];

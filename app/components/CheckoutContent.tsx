@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
@@ -58,13 +58,36 @@ export function CheckoutContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // QR Context State
+  const [qrType, setQrType] = useState<string | null>(null);
+  const [qrTable, setQrTable] = useState<string | null>(null);
+
+  // Load Context on Mount
+  useEffect(() => {
+    const type = sessionStorage.getItem("anhhai_order_type");
+    const table = sessionStorage.getItem("anhhai_table_number");
+    
+    if (type) {
+      setQrType(type);
+      if (type === "dine_in") {
+        setDiningMode(DiningMode.DineIn);
+        if (table) {
+          setQrTable(table);
+          setTableNumber(table);
+        }
+      } else if (type === "takeaway") {
+        setDiningMode(DiningMode.TakeAway);
+      }
+    }
+  }, []);
+
   const price = totalPrice();
   const isEmpty = items.length === 0;
 
   const canSubmit =
     !isEmpty &&
     !isSubmitting &&
-    customerPhone.trim().length >= 9 &&
+    (qrType ? true : customerPhone.trim().length >= 9) &&
     (diningMode !== DiningMode.DineIn || tableNumber.trim().length > 0) &&
     (diningMode !== DiningMode.Delivery || deliveryAddress.trim().length > 0);
 
@@ -74,46 +97,74 @@ export function CheckoutContent() {
     setError(null);
 
     try {
-      // TODO: Replace with actual API call when backend is connected
-      // const payload = {
-      //   items: items.map((i) => ({ menuItemId: i.menuItem.id, quantity: i.quantity })),
-      //   diningMode,
-      //   tableNumber: diningMode === DiningMode.DineIn ? tableNumber.trim() : null,
-      //   deliveryAddress: diningMode === DiningMode.Delivery ? deliveryAddress.trim() : null,
-      //   customerPhone: customerPhone.trim(),
-      //   note: note.trim() || null,
-      // };
-      // const res = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      // const data = await res.json();
+      const finalPhone = qrType 
+        ? `QR-${Math.floor(1000 + Math.random() * 9000)}` 
+        : customerPhone.trim();
 
-      // Mock: simulate API delay and generate a fake tracking token
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-      const mockToken = crypto.randomUUID();
-
-      // Save tracking token and order summary to localStorage
-      const orderSummary = {
-        trackingToken: mockToken,
-        items: items.map((i) => ({
-          name: i.menuItem.name,
-          quantity: i.quantity,
-          unitPrice: i.menuItem.price,
-          subtotal: i.menuItem.price * i.quantity,
+      const payload = {
+        Items: items.map((i) => ({ 
+          MenuItemId: i.menuItem.id, 
+          Quantity: i.quantity,
+          Note: i.note || "",
+          ChildItems: i.sideDishes && i.sideDishes.length > 0 
+            ? i.sideDishes.map(side => ({
+                MenuItemId: side.menuItem.id,
+                Quantity: side.quantity * i.quantity,
+                Note: ""
+              }))
+            : null
         })),
-        totalAmount: price,
-        diningMode,
-        tableNumber: diningMode === DiningMode.DineIn ? tableNumber.trim() : null,
-        deliveryAddress: diningMode === DiningMode.Delivery ? deliveryAddress.trim() : null,
-        customerPhone: customerPhone.trim(),
-        note: note.trim() || null,
-        createdAt: new Date().toISOString(),
+        DiningMode: diningMode,
+        TableNumber: diningMode === DiningMode.DineIn ? tableNumber.trim() : null,
+        DeliveryAddress: diningMode === DiningMode.Delivery ? deliveryAddress.trim() : null,
+        CustomerPhone: finalPhone,
+        Note: note.trim() || null,
       };
-      localStorage.setItem("anhhai_tracking_token", mockToken);
-      localStorage.setItem("anhhai_last_order", JSON.stringify(orderSummary));
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5130";
+      const res = await fetch(`${apiUrl}/api/orders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        let errorMsg = "Co loi xay ra. Vui long thu lai.";
+        try {
+          const errorData = await res.json();
+          errorMsg = errorData.detail || errorData.title || errorMsg;
+        } catch {}
+        throw new Error(errorMsg);
+      }
+
+      const data = await res.json();
+      const orderResponse = data.value !== undefined ? data.value : data;
+      const trackingToken = orderResponse.trackingToken;
+      const orderId = orderResponse.id;
+
+      // Handle Capped Array for Tracking Tokens (FIFO Limit 10)
+      const existingTokensStr = localStorage.getItem("anhhai_tracking_tokens");
+      let tokensArray = existingTokensStr ? JSON.parse(existingTokensStr) : [];
+      
+      tokensArray.push({
+        trackingToken,
+        orderId,
+        createdAt: new Date().toISOString(),
+      });
+
+      if (tokensArray.length > 10) {
+        tokensArray.shift(); // Remove the oldest if > 10
+      }
+
+      localStorage.setItem("anhhai_tracking_tokens", JSON.stringify(tokensArray));
+
+      // Also set the legacy ones just in case the old pages still use them, but we'll migrate them.
+      localStorage.setItem("anhhai_tracking_token", trackingToken);
 
       clearCart();
       router.push("/theo-doi-don");
-    } catch {
-      setError("Co loi xay ra. Vui long thu lai.");
+    } catch (err: any) {
+      setError(err.message || "Co loi xay ra. Vui long thu lai.");
       setIsSubmitting(false);
     }
   };
@@ -186,7 +237,7 @@ export function CheckoutContent() {
             <ul className="divide-y divide-slate-50">
               {items.map((item) => (
                 <li
-                  key={item.menuItem.id}
+                  key={item.cartItemId}
                   className="flex items-center gap-4 px-6 py-4"
                 >
                   <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-50 shrink-0">
@@ -204,18 +255,45 @@ export function CheckoutContent() {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-900 truncate">
-                      {item.menuItem.name}
-                    </p>
-                    <p className="text-sm text-amber-600 font-semibold mt-0.5">
-                      {item.menuItem.price.toLocaleString("vi-VN")}d
+                    <div className="flex justify-between items-start">
+                      <p className="text-sm font-bold text-slate-900 truncate">
+                        {item.menuItem.name}
+                      </p>
+                      <span className="text-sm font-semibold text-slate-700 ml-2">
+                        {item.menuItem.price.toLocaleString("vi-VN")}đ
+                      </span>
+                    </div>
+
+                    {item.sideDishes && item.sideDishes.length > 0 && (
+                      <div className="mt-1 flex flex-col gap-0.5">
+                        {item.sideDishes.map((side) => (
+                          <div key={side.menuItem.id} className="text-xs text-slate-500 flex justify-between items-start">
+                            <span className="line-clamp-1 pr-2">
+                              + {side.menuItem.name} {side.quantity > 1 ? `(x${side.quantity})` : ""}
+                            </span>
+                            <span className="shrink-0">
+                              {(side.menuItem.price * side.quantity).toLocaleString("vi-VN")}đ
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {item.note && (
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-1 italic">
+                        Ghi chú: {item.note}
+                      </p>
+                    )}
+                    
+                    <p className="text-xs font-bold text-amber-600 mt-2 border-t border-slate-50 pt-1.5 inline-block">
+                      Tổng 1 phần: {((item.menuItem.price) + (item.sideDishes?.reduce((sum, s) => sum + s.menuItem.price * s.quantity, 0) || 0)).toLocaleString("vi-VN")}đ
                     </p>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() =>
-                        updateQuantity(item.menuItem.id, item.quantity - 1)
+                        updateQuantity(item.cartItemId, item.quantity - 1)
                       }
                       className="w-7 h-7 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors active:scale-[0.94]"
                     >
@@ -226,7 +304,7 @@ export function CheckoutContent() {
                     </span>
                     <button
                       onClick={() =>
-                        updateQuantity(item.menuItem.id, item.quantity + 1)
+                        updateQuantity(item.cartItemId, item.quantity + 1)
                       }
                       className="w-7 h-7 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors active:scale-[0.94]"
                     >
@@ -236,10 +314,10 @@ export function CheckoutContent() {
 
                   <div className="text-right shrink-0 flex items-center gap-3">
                     <span className="text-sm font-bold text-slate-900 tabular-nums">
-                      {(item.menuItem.price * item.quantity).toLocaleString("vi-VN")}d
+                      {(((item.menuItem.price) + (item.sideDishes?.reduce((sum, s) => sum + s.menuItem.price * s.quantity, 0) || 0)) * item.quantity).toLocaleString("vi-VN")}đ
                     </span>
                     <button
-                      onClick={() => removeItem(item.menuItem.id)}
+                      onClick={() => removeItem(item.cartItemId)}
                       className="w-7 h-7 rounded-full hover:bg-red-50 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"
                     >
                       <Trash size={14} weight="bold" />
@@ -251,102 +329,128 @@ export function CheckoutContent() {
           </motion.section>
 
           {/* Section 2: Dining mode */}
-          <motion.section
-            initial={reduce ? false : { opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="bg-white rounded-2xl border border-slate-100 p-6"
-          >
-            <h2 className="text-base font-bold text-slate-900 mb-4">
-              Hinh thuc nhan mon
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {diningModes.map((mode) => {
-                const isActive = diningMode === mode.value;
-                return (
-                  <button
-                    key={mode.value}
-                    onClick={() => setDiningMode(mode.value)}
-                    className={`relative flex flex-col items-start p-4 rounded-xl border-2 transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] text-left ${
-                      isActive
-                        ? "border-amber-500 bg-amber-50/50"
-                        : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50"
-                    }`}
-                  >
-                    <mode.icon
-                      size={24}
-                      weight="duotone"
-                      className={isActive ? "text-amber-600" : "text-slate-400"}
-                    />
-                    <span
-                      className={`mt-2.5 text-sm font-bold ${
-                        isActive ? "text-slate-900" : "text-slate-700"
+          {!qrType && (
+            <motion.section
+              initial={reduce ? false : { opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="bg-white rounded-2xl border border-slate-100 p-6"
+            >
+              <h2 className="text-base font-bold text-slate-900 mb-4">
+                Hinh thuc nhan mon
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {diningModes.map((mode) => {
+                  const isActive = diningMode === mode.value;
+                  return (
+                    <button
+                      key={mode.value}
+                      onClick={() => setDiningMode(mode.value)}
+                      className={`relative flex flex-col items-start p-4 rounded-xl border-2 transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] text-left ${
+                        isActive
+                          ? "border-amber-500 bg-amber-50/50"
+                          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50"
                       }`}
                     >
-                      {mode.label}
-                    </span>
-                    <span className="text-xs text-slate-500 mt-0.5">
-                      {mode.description}
-                    </span>
-                    {isActive && (
-                      <div className="absolute top-3 right-3">
-                        <CheckCircle
-                          size={20}
-                          weight="fill"
-                          className="text-amber-500"
-                        />
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+                      <mode.icon
+                        size={24}
+                        weight="duotone"
+                        className={isActive ? "text-amber-600" : "text-slate-400"}
+                      />
+                      <span
+                        className={`mt-2.5 text-sm font-bold ${
+                          isActive ? "text-slate-900" : "text-slate-700"
+                        }`}
+                      >
+                        {mode.label}
+                      </span>
+                      <span className="text-xs text-slate-500 mt-0.5">
+                        {mode.description}
+                      </span>
+                      {isActive && (
+                        <div className="absolute top-3 right-3">
+                          <CheckCircle
+                            size={20}
+                            weight="fill"
+                            className="text-amber-500"
+                          />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
 
-            {diningMode === DiningMode.DineIn && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
-                className="mt-4"
-              >
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                  So ban
-                </label>
-                <input
-                  type="text"
-                  value={tableNumber}
-                  onChange={(e) => setTableNumber(e.target.value)}
-                  placeholder="VD: 5, A2, B3..."
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all duration-300"
-                />
-              </motion.div>
-            )}
-
-            {diningMode === DiningMode.Delivery && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
-                className="mt-4"
-              >
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                  <MapPin
-                    size={14}
-                    weight="bold"
-                    className="inline mr-1.5 text-amber-500"
+              {diningMode === DiningMode.DineIn && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+                  className="mt-4"
+                >
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                    So ban
+                  </label>
+                  <input
+                    type="text"
+                    value={tableNumber}
+                    onChange={(e) => setTableNumber(e.target.value)}
+                    placeholder="VD: 5, A2, B3..."
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all duration-300"
                   />
-                  Dia chi giao hang
-                </label>
-                <input
-                  type="text"
-                  value={deliveryAddress}
-                  onChange={(e) => setDeliveryAddress(e.target.value)}
-                  placeholder="Nhap dia chi giao hang day du..."
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all duration-300"
-                />
-              </motion.div>
-            )}
-          </motion.section>
+                </motion.div>
+              )}
+
+              {diningMode === DiningMode.Delivery && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+                  className="mt-4"
+                >
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                    <MapPin
+                      size={14}
+                      weight="bold"
+                      className="inline mr-1.5 text-amber-500"
+                    />
+                    Dia chi giao hang
+                  </label>
+                  <input
+                    type="text"
+                    value={deliveryAddress}
+                    onChange={(e) => setDeliveryAddress(e.target.value)}
+                    placeholder="Nhap dia chi giao hang day du..."
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all duration-300"
+                  />
+                </motion.div>
+              )}
+            </motion.section>
+          )}
+
+          {/* QR Context Banner */}
+          {qrType && (
+            <motion.section
+              initial={reduce ? false : { opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="bg-amber-50 rounded-2xl border border-amber-200 p-6 flex items-start gap-4"
+            >
+              <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                {qrType === "dine_in" ? <Storefront size={24} weight="duotone" className="text-amber-600" /> : <Package size={24} weight="duotone" className="text-amber-600" />}
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-amber-900">
+                  {qrType === "dine_in" ? `Ăn tại quán - Bàn số ${qrTable || "?"}` : "Mang đi (Takeaway)"}
+                </h2>
+                <p className="text-sm text-amber-700 mt-1">
+                  {qrType === "dine_in" 
+                    ? "Hệ thống đã ghi nhận bàn của bạn. Vui lòng kiểm tra đơn và xác nhận."
+                    : "Mã nhận món sẽ được cấp tự động sau khi xác nhận. Vui lòng đợi tại quầy."}
+                </p>
+              </div>
+            </motion.section>
+          )}
 
           {/* Section 3: Contact info */}
           <motion.section
@@ -356,26 +460,28 @@ export function CheckoutContent() {
             className="bg-white rounded-2xl border border-slate-100 p-6 space-y-4"
           >
             <h2 className="text-base font-bold text-slate-900">
-              Thong tin lien he
+              {qrType ? "Ghi chú thêm" : "Thong tin lien he"}
             </h2>
 
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                <Phone
-                  size={14}
-                  weight="bold"
-                  className="inline mr-1.5 text-amber-500"
+            {!qrType && (
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                  <Phone
+                    size={14}
+                    weight="bold"
+                    className="inline mr-1.5 text-amber-500"
+                  />
+                  So dien thoai
+                </label>
+                <input
+                  type="tel"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  placeholder="0901 234 567"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all duration-300"
                 />
-                So dien thoai
-              </label>
-              <input
-                type="tel"
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder="0901 234 567"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all duration-300"
-              />
-            </div>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">
@@ -389,7 +495,7 @@ export function CheckoutContent() {
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="VD: Khong hanh, it ot, giao gio trua..."
+                placeholder="VD: Khong hanh, it ot, phuc vu nhanh giup toi..."
                 rows={3}
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all duration-300 resize-none"
               />

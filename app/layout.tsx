@@ -14,6 +14,8 @@ export const metadata: Metadata = {
     "Thuong thuc com ga Anh Hai Lua - huong vi truyen thong, chat luong hien dai. Dat mon truc tuyen, giao hang tan noi.",
 };
 
+import { QRContextTracker } from "./components/QRContextTracker";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -21,7 +23,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi" className={`${jakarta.variable} antialiased`}>
-      <body>{children}</body>
+      <body>
+        <QRContextTracker />
+        {children}
+      </body>
     </html>
   );
 }
