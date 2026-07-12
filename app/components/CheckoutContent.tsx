@@ -50,7 +50,7 @@ export function CheckoutContent() {
   const { items, updateQuantity, removeItem, totalPrice, clearCart } =
     useCartStore();
 
-  const [diningMode, setDiningMode] = useState<DiningMode>(DiningMode.DineIn);
+  const [diningMode, setDiningMode] = useState<DiningMode>(DiningMode.TakeAway);
   const [tableNumber, setTableNumber] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -339,8 +339,8 @@ export function CheckoutContent() {
               <h2 className="text-base font-bold text-slate-900 mb-4">
                 Hinh thuc nhan mon
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {diningModes.map((mode) => {
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {diningModes.filter(m => m.value !== DiningMode.DineIn).map((mode) => {
                   const isActive = diningMode === mode.value;
                   return (
                     <button
