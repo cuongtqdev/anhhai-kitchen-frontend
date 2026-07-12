@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { List, X, CookingPot, ForkKnife } from "@phosphor-icons/react";
+import { List, X, CookingPot, ForkKnife, CreditCard } from "@phosphor-icons/react";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -24,6 +24,7 @@ export function AdminNav() {
   const links = [
     { href: "/quan-tri/bep", label: "Màn hình Bếp (KDS)", icon: CookingPot },
     { href: "/quan-tri/menu", label: "Quản lý Thực đơn", icon: ForkKnife },
+    { href: "/quan-tri/thu-ngan", label: "Thu ngân", icon: CreditCard },
   ];
 
   return (
