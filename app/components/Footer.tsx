@@ -59,17 +59,17 @@ export function Footer() {
               <li className="flex items-start gap-2.5">
                 <MapPin size={16} weight="duotone" className="text-amber-500 mt-0.5 shrink-0" />
                 <span className="text-sm text-slate-500">
-                  123 Duong ABC, Quan XYZ, TP. Ho Chi Minh
+                  834 Trần Hưng Đạo, Điện Ngọc, Điện Bàn, Quảng Nam
                 </span>
               </li>
               <li className="flex items-center gap-2.5">
                 <Phone size={16} weight="duotone" className="text-amber-500 shrink-0" />
-                <span className="text-sm text-slate-500">0901 234 567</span>
+                <span className="text-sm text-slate-500">0935999135</span>
               </li>
               <li className="flex items-center gap-2.5">
                 <Clock size={16} weight="duotone" className="text-amber-500 shrink-0" />
                 <span className="text-sm text-slate-500">
-                  10:00 - 21:00 (Hang ngay)
+                  10:00 - 20:00 (Hang ngay)
                 </span>
               </li>
             </ul>

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import Cookies from "js-cookie";
 import { 
   CircleNotch, WarningCircle, CheckCircle, Plus, 
-  PencilSimple, X, Image as ImageIcon, MagnifyingGlass
+  PencilSimple, X, Image as ImageIcon, MagnifyingGlass, CaretLeft, CaretRight
 } from "@phosphor-icons/react";
 import Image from "next/image";
 import { AdminNav } from "./AdminNav";
@@ -28,6 +28,8 @@ export function MenuDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("Tất cả");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -216,6 +218,16 @@ export function MenuDashboard() {
     return matchesSearch && matchesCategory;
   });
 
+  const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
+  const paginatedItems = filteredItems.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, selectedCategory]);
+
   if (loading && items.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -270,7 +282,7 @@ export function MenuDashboard() {
           </div>
 
           {/* Category Tabs */}
-          <div className="flex overflow-x-auto hide-scrollbar gap-2 pb-2">
+          <div className="flex flex-wrap gap-2 pb-2">
             {categories.map(cat => (
               <button
                 key={cat}
@@ -290,7 +302,7 @@ export function MenuDashboard() {
         <div className="space-y-8">
           <div className="bg-white rounded-3xl shadow-sm border border-slate-200/60 overflow-hidden">
             <div className="divide-y divide-slate-100">
-              {filteredItems.map(item => (
+              {paginatedItems.map(item => (
                 <div key={item.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
                   <div className="flex items-center gap-4">
                     {item.imageUrl ? (
@@ -353,6 +365,55 @@ export function MenuDashboard() {
           {filteredItems.length === 0 && (
             <div className="text-center py-20 text-slate-500 font-medium bg-white rounded-3xl border border-slate-200 border-dashed">
               Không tìm thấy món ăn nào.
+            </div>
+          )}
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="mt-8 flex justify-center items-center gap-2">
+              <button
+                onClick={() => {
+                  setCurrentPage(p => Math.max(1, p - 1));
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                disabled={currentPage === 1}
+                className="w-10 h-10 flex items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 disabled:opacity-50 transition-colors hover:bg-slate-50 shadow-sm"
+              >
+                <CaretLeft size={16} weight="bold" />
+              </button>
+              
+              <div className="flex items-center gap-1 mx-2 overflow-x-auto scrollbar-none">
+                {Array.from({ length: totalPages }).map((_, idx) => {
+                  const page = idx + 1;
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => {
+                        setCurrentPage(page);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className={`shrink-0 w-10 h-10 flex items-center justify-center rounded-full text-sm font-bold transition-all shadow-sm ${
+                        currentPage === page 
+                          ? "bg-amber-500 text-white shadow-amber-500/20" 
+                          : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={() => {
+                  setCurrentPage(p => Math.min(totalPages, p + 1));
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                disabled={currentPage === totalPages}
+                className="w-10 h-10 flex items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 disabled:opacity-50 transition-colors hover:bg-slate-50 shadow-sm"
+              >
+                <CaretRight size={16} weight="bold" />
+              </button>
             </div>
           )}
         </div>
